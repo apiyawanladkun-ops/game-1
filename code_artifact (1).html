@@ -1,0 +1,1094 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ล่าคำสัมผัส</title>
+    <link href="https://fonts.googleapis.com/css2?family=Mali:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        :root {
+            --primary: #FF9A9E;
+            --secondary: #FECFEF;
+            --accent: #A18CD1;
+            --text-dark: #4A4A4A;
+            --bg-top: #a1c4fd;
+            --bg-bottom: #c2e9fb;
+            --success: #6EE7B7;
+            --danger: #FCA5A5;
+            --warning: #FCD34D;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Mali', cursive;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        body {
+            background: linear-gradient(135deg, var(--bg-top) 0%, var(--bg-bottom) 100%);
+            color: var(--text-dark);
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden; /* Prevent scrolling of the whole page */
+            position: relative;
+        }
+
+        /* Background Decorations (z-index: 0) */
+        .bg-decorations {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            pointer-events: none;
+        }
+        .cloud {
+            position: absolute;
+            background: white;
+            border-radius: 50px;
+            opacity: 0.6;
+        }
+        .cloud::before, .cloud::after {
+            content: '';
+            position: absolute;
+            background: white;
+            border-radius: 50%;
+        }
+        .cloud1 { width: 100px; height: 30px; top: 10%; left: 10%; }
+        .cloud1::before { width: 40px; height: 40px; top: -20px; left: 15px; }
+        .cloud1::after { width: 30px; height: 30px; top: -10px; left: 50px; }
+        .cloud2 { width: 150px; height: 40px; top: 30%; right: 5%; opacity: 0.4; }
+        .cloud2::before { width: 60px; height: 60px; top: -30px; left: 20px; }
+        .cloud2::after { width: 50px; height: 50px; top: -20px; left: 70px; }
+
+        /* Bubble Area (z-index: 20) */
+        #bubbleArea {
+            position: fixed;
+            inset: 0;
+            z-index: 20;
+            touch-action: none;
+        }
+
+        .bubble {
+            position: absolute;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: #fff;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.4);
+            box-shadow: inset -5px -5px 15px rgba(0,0,0,0.2), inset 5px 5px 15px rgba(255,255,255,0.8), 2px 2px 5px rgba(0,0,0,0.2);
+            cursor: pointer;
+            touch-action: none;
+            transition: transform 0.1s ease; /* Only for scaling on interaction */
+        }
+        .bubble:active {
+            transform: scale(0.9);
+        }
+        .bubble.pop {
+            transform: scale(1.5);
+            opacity: 0;
+            transition: all 0.2s ease-out;
+        }
+
+        /* Screens */
+        .screen {
+            position: fixed;
+            inset: 0;
+            z-index: 100; /* Screens are above game elements when active */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(5px);
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        /* Game HUD (z-index: 50) */
+        #gameHUD {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 50;
+            pointer-events: none;
+            padding: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            text-shadow: 1px 1px 0 #fff, -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff;
+        }
+
+        #targetWordDisplay {
+            position: fixed;
+            top: 20%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 50;
+            pointer-events: none;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 15px 40px;
+            border-radius: 30px;
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: var(--accent);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            border: 3px solid var(--accent);
+        }
+
+        #countdownOverlay {
+            position: fixed;
+            inset: 0;
+            z-index: 60;
+            pointer-events: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 8rem;
+            font-weight: bold;
+            color: var(--primary);
+            text-shadow: 4px 4px 0 #fff;
+        }
+
+        /* UI Elements */
+        .card {
+            background: white;
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            text-align: center;
+            width: 100%;
+            max-width: 500px;
+        }
+
+        h1.game-title {
+            color: var(--accent);
+            font-size: 2.5rem;
+            margin-bottom: 5px;
+            text-shadow: 2px 2px 0px var(--secondary);
+        }
+
+        .school-info {
+            color: #666;
+            font-size: 1.1rem;
+            margin-bottom: 20px;
+        }
+
+        input[type="text"], input[type="number"], select {
+            width: 100%;
+            padding: 12px 15px;
+            margin: 10px 0;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            font-size: 1.2rem;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+        input:focus, select:focus {
+            border-color: var(--accent);
+        }
+
+        .btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            font-size: 1.2rem;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: bold;
+            margin: 5px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: transform 0.1s, background 0.3s;
+        }
+        .btn:active {
+            transform: scale(0.95);
+        }
+        .btn-secondary { background: var(--accent); }
+        .btn-success { background: var(--success); color: #222; }
+        .btn-warning { background: var(--warning); color: #222; }
+        .btn-danger { background: var(--danger); color: #222; }
+
+        .stat-box {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+        .combo-text {
+            color: #FF5722;
+            font-size: 1.8rem;
+            transition: transform 0.1s;
+        }
+        .combo-bump {
+            transform: scale(1.5);
+        }
+
+        /* Animations */
+        @keyframes shake {
+            0% { transform: translate(1px, 1px) rotate(0deg); }
+            10% { transform: translate(-1px, -2px) rotate(-1deg); }
+            20% { transform: translate(-3px, 0px) rotate(1deg); }
+            30% { transform: translate(3px, 2px) rotate(0deg); }
+            40% { transform: translate(1px, -1px) rotate(1deg); }
+            50% { transform: translate(-1px, 2px) rotate(-1deg); }
+            60% { transform: translate(-3px, 1px) rotate(0deg); }
+            70% { transform: translate(3px, 1px) rotate(-1deg); }
+            80% { transform: translate(-1px, -1px) rotate(1deg); }
+            90% { transform: translate(1px, 2px) rotate(0deg); }
+            100% { transform: translate(1px, -2px) rotate(-1deg); }
+        }
+        .shake {
+            animation: shake 0.3s;
+        }
+
+        /* Settings Table */
+        .word-list-container {
+            max-height: 300px;
+            overflow-y: auto;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            padding: 10px;
+            border-radius: 10px;
+            text-align: left;
+        }
+        .word-row {
+            display: grid;
+            grid-template-columns: 1fr 2fr 2fr auto;
+            gap: 5px;
+            margin-bottom: 5px;
+            align-items: center;
+        }
+        .word-row input { margin: 0; padding: 5px; font-size: 1rem; }
+        
+        /* Leaderboard */
+        .leaderboard-list {
+            list-style: none;
+            padding: 0;
+            margin: 20px 0;
+            text-align: left;
+            max-height: 250px;
+            overflow-y: auto;
+        }
+        .leaderboard-list li {
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+        }
+        .rank-1 { color: #D4AF37; font-weight: bold; font-size: 1.2rem; }
+        .rank-2 { color: #C0C0C0; font-weight: bold; }
+        .rank-3 { color: #CD7F32; font-weight: bold; }
+
+        /* Summary Image Box */
+        #summaryImageArea {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 15px;
+            border: 2px solid var(--secondary);
+        }
+        .stars {
+            color: var(--warning);
+            font-size: 2.5rem;
+            letter-spacing: 5px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Background Decorations -->
+    <div class="bg-decorations">
+        <div class="cloud cloud1"></div>
+        <div class="cloud cloud2"></div>
+    </div>
+
+    <!-- Gameplay Area (z-index 20) -->
+    <div id="bubbleArea"></div>
+
+    <!-- HUD (z-index 50) -->
+    <div id="gameScreen" class="hidden">
+        <div id="gameHUD">
+            <div class="stat-box">⏳ <span id="timeDisplay">60</span>s</div>
+            <div style="text-align: center;">
+                <div class="stat-box">⭐ <span id="scoreDisplay">0</span></div>
+                <div id="comboDisplay" class="combo-text hidden">Combo x<span id="comboCount">2</span>!</div>
+            </div>
+        </div>
+        <div id="targetWordDisplay">โจทย์</div>
+        <div id="countdownOverlay" class="hidden">3</div>
+    </div>
+
+    <!-- Home Screen -->
+    <div id="homeScreen" class="screen">
+        <div class="card">
+            <h1 class="game-title" id="displayGameTitle">🎤 ล่าคำสัมผัส</h1>
+            <div class="school-info">
+                โดย <span id="displayTeacherName">ครูหลิว</span><br>
+                <span id="displaySchoolName">โรงเรียนคอนสารวิทยาคม</span>
+            </div>
+            
+            <input type="text" id="studentNameInput" placeholder="พิมพ์ชื่อนักเรียนที่นี่..." autocomplete="off">
+            <br><br>
+            <button class="btn" onclick="startGameClick()">▶️ เริ่มเล่นเกม</button>
+            <button class="btn btn-secondary" onclick="showScreen('leaderboardScreen')">🏆 ตารางคะแนน</button>
+            <button class="btn btn-warning" onclick="showScreen('settingsScreen')" style="margin-top: 20px; font-size: 1rem;">⚙️ ตั้งค่า (สำหรับครู)</button>
+        </div>
+    </div>
+
+    <!-- Summary Screen -->
+    <div id="summaryScreen" class="screen hidden">
+        <div class="card" id="exportContent">
+            <div id="summaryImageArea">
+                <h1 class="game-title" id="sumGameTitle">🎤 ล่าคำสัมผัส</h1>
+                <div class="school-info">
+                    <span id="sumStudentName" style="color:var(--accent); font-weight:bold; font-size:1.3rem;">ชื่อนักเรียน</span><br>
+                    สอนโดย <span id="sumTeacherName">ครูหลิว</span> | <span id="sumSchoolName">โรงเรียน</span><br>
+                    <small id="sumDate">วันที่</small>
+                </div>
+                
+                <h2>ผลการเล่น</h2>
+                <div class="stars" id="sumStars">⭐⭐⭐</div>
+                <h1 style="font-size: 3rem; color: var(--primary); margin: 10px 0;" id="sumScore">0</h1>
+                <p>คะแนนรวม</p>
+                <hr style="margin: 15px 0; border: 0; border-top: 1px dashed #ccc;">
+                <div style="display: flex; justify-content: space-around; font-size: 1.1rem;">
+                    <div>✅ ถูก: <span id="sumCorrect" style="color:var(--success)">0</span></div>
+                    <div>❌ ผิด: <span id="sumWrong" style="color:var(--danger)">0</span></div>
+                </div>
+                <div style="margin-top: 10px; font-weight: bold;">
+                    🔥 คอมโบสูงสุด: <span id="sumMaxCombo" style="color:#FF5722">0</span>
+                </div>
+            </div>
+            
+            <button class="btn btn-success" onclick="saveAsImage()">📸 บันทึกเป็นรูปภาพ</button>
+            <button class="btn btn-secondary" onclick="showScreen('homeScreen')">🏠 กลับหน้าแรก</button>
+        </div>
+    </div>
+
+    <!-- Leaderboard Screen -->
+    <div id="leaderboardScreen" class="screen hidden">
+        <div class="card">
+            <h1 class="game-title">🏆 ตารางคะแนน</h1>
+            <ul class="leaderboard-list" id="leaderboardList">
+                <!-- Injected via JS -->
+            </ul>
+            <button class="btn btn-secondary" onclick="showScreen('homeScreen')">🏠 กลับหน้าแรก</button>
+            <button class="btn btn-danger" onclick="clearLeaderboard()" style="font-size: 0.9rem;">🗑️ ล้างคะแนน</button>
+        </div>
+    </div>
+
+    <!-- Settings Screen (Teacher) -->
+    <div id="settingsScreen" class="screen hidden">
+        <div class="card" style="max-width: 800px;">
+            <h1 class="game-title">⚙️ ตั้งค่าเกม</h1>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; text-align: left;">
+                <div>
+                    <label>ชื่อเกม:</label>
+                    <input type="text" id="cfgGameTitle">
+                </div>
+                <div>
+                    <label>ชื่อคุณครู:</label>
+                    <input type="text" id="cfgTeacherName">
+                </div>
+                <div style="grid-column: span 2;">
+                    <label>ชื่อโรงเรียน:</label>
+                    <input type="text" id="cfgSchoolName">
+                </div>
+                <div>
+                    <label>เวลาเล่น (วินาที):</label>
+                    <input type="number" id="cfgTimeLimit" min="10" max="300">
+                </div>
+                <div>
+                    <label>จำนวนฟองสูงสุดในจอ:</label>
+                    <input type="number" id="cfgMaxBubbles" min="3" max="15">
+                </div>
+                <div>
+                    <label>ระดับความยาก:</label>
+                    <select id="cfgDifficulty">
+                        <option value="easy">ง่าย (ช้า, คำลวงน้อย)</option>
+                        <option value="normal">ปานกลาง (ปกติ)</option>
+                        <option value="hard">ยาก (เร็ว, คำลวงเยอะ)</option>
+                    </select>
+                </div>
+                <div>
+                    <label>เสียงประกอบ:</label>
+                    <select id="cfgSound">
+                        <option value="true">เปิดเสียง</option>
+                        <option value="false">ปิดเสียง</option>
+                    </select>
+                </div>
+            </div>
+
+            <hr style="margin: 20px 0;">
+            <h3 style="text-align: left;">📚 ชุดคำโจทย์และคำคล้องจอง</h3>
+            <div style="font-size: 0.8rem; text-align: left; color: #666; margin-bottom: 5px;">* คั่นคำด้วยเครื่องหมายทับ (/)</div>
+            <div class="word-list-container" id="wordListContainer">
+                <!-- Rows injected via JS -->
+            </div>
+            <button class="btn btn-success" onclick="addWordRow()">+ เพิ่มโจทย์ใหม่</button>
+            
+            <hr style="margin: 20px 0;">
+            <button class="btn" onclick="saveSettings()">💾 บันทึกและกลับหน้าแรก</button>
+            <button class="btn btn-secondary" onclick="loadDefaultSettings(); renderWordSettings();">🔄 คืนค่าเริ่มต้น</button>
+        </div>
+    </div>
+
+<script>
+    // --- Initial Defaults ---
+    const DEFAULT_CONFIG = {
+        teacherName: "ครูหลิว",
+        schoolName: "โรงเรียนคอนสารวิทยาคม",
+        gameTitle: "🎤 ล่าคำสัมผัส",
+        timeLimit: 60,
+        maxBubbles: 8,
+        difficulty: "normal", // easy, normal, hard
+        soundEnabled: true,
+        wordList: [
+            { target: "นา", correct: ["ตา","ปลา","มา","ฟ้า","ยา","ขา"], wrong: ["ดิน","ลม","ไฟ","วิ่ง","นก","ใจ"] },
+            { target: "ใจ", correct: ["ไป","ไม้","ใหม่","ไหน","ใคร","ใส"], wrong: ["กิน","นอน","รัก","ดาว","แมว","มือ"] },
+            { target: "ดาว", correct: ["ขาว","หนาว","ยาว","สาว","ก้าว","ข้าว"], wrong: ["เดือน","ตะวัน","เมฆ","ลม","สวย","ดิน"] },
+            { target: "มือ", correct: ["คือ","ลือ","ถือ","รื้อ","ดื้อ","ชื่อ"], wrong: ["เท้า","แขน","ตา","มอง","จับ","เดิน"] },
+            { target: "เดิน", correct: ["เนิน","เทิน","เชิญ","เพลิน","เขิน","เกิน"], wrong: ["วิ่ง","นั่ง","นอน","กระโดด","หยุด","ไป"] },
+            { target: "ดิน", correct: ["หิน","ถิ่น","กิน","บิน","ริน","ชิน"], wrong: ["น้ำ","ฟ้า","ลม","ทราย","ไม้","แดง"] },
+            { target: "แมว", correct: ["แถว","แนว","แก้ว","แล้ว","แพรว","แจว"], wrong: ["หมา","นก","ปลา","หมู","หนู","ไก่"] }
+        ]
+    };
+
+    // --- State Variables ---
+    let config = {};
+    let gameState = {
+        score: 0,
+        time: 0,
+        combo: 0,
+        maxCombo: 0,
+        correctCount: 0,
+        wrongCount: 0,
+        studentName: "",
+        currentTarget: null,
+        correctWordsToChange: 0, // Count to trigger word change
+        bubbles: [],
+        gameRunning: false,
+        animFrameId: null,
+        bubbleIntervalId: null,
+        countdownId: null,
+        timerId: null
+    };
+
+    // Colors for bubbles
+    const bubbleColors = [
+        ['#FF9A9E', '#FECFEF'], // Pink
+        ['#a18cd1', '#fbc2eb'], // Purple
+        ['#84fab0', '#8fd3f4'], // Green/Blue
+        ['#fccb90', '#d57eeb'], // Orange/Pink
+        ['#e0c3fc', '#8ec5fc'], // Light Blue/Purple
+        ['#f6d365', '#fda085']  // Yellow/Orange
+    ];
+
+    // --- Audio System (Web Audio API) ---
+    let audioCtx = null;
+    
+    function initAudio() {
+        if (config.soundEnabled && !audioCtx) {
+            try {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                audioCtx = new AudioContext();
+            } catch(e) {
+                console.warn("Audio not supported");
+            }
+        }
+    }
+
+    function playSound(type) {
+        if (!config.soundEnabled || !audioCtx) return;
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+
+        const osc = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+        osc.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+
+        const now = audioCtx.currentTime;
+
+        if (type === 'correct') {
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(600, now);
+            osc.frequency.exponentialRampToValueAtTime(1200, now + 0.1);
+            gainNode.gain.setValueAtTime(0.3, now);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+            osc.start(now);
+            osc.stop(now + 0.3);
+        } else if (type === 'wrong') {
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(150, now);
+            osc.frequency.linearRampToValueAtTime(100, now + 0.2);
+            gainNode.gain.setValueAtTime(0.3, now);
+            gainNode.gain.linearRampToValueAtTime(0.01, now + 0.3);
+            osc.start(now);
+            osc.stop(now + 0.3);
+        } else if (type === 'pop') {
+            osc.type = 'square';
+            osc.frequency.setValueAtTime(400, now);
+            osc.frequency.exponentialRampToValueAtTime(100, now + 0.1);
+            gainNode.gain.setValueAtTime(0.1, now);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+            osc.start(now);
+            osc.stop(now + 0.1);
+        }
+    }
+
+    // --- Initialization & Config ---
+    function init() {
+        loadSettings();
+        applyConfigToUI();
+        document.getElementById('studentNameInput').value = ""; // Clear input on refresh
+    }
+
+    function loadSettings() {
+        const saved = localStorage.getItem('sampaGameConfig');
+        if (saved) {
+            try {
+                config = JSON.parse(saved);
+                // Ensure wordlist exists if old save
+                if(!config.wordList) config.wordList = JSON.parse(JSON.stringify(DEFAULT_CONFIG.wordList));
+            } catch (e) {
+                config = JSON.parse(JSON.stringify(DEFAULT_CONFIG));
+            }
+        } else {
+            loadDefaultSettings();
+        }
+    }
+
+    function loadDefaultSettings() {
+        config = JSON.parse(JSON.stringify(DEFAULT_CONFIG));
+    }
+
+    function applyConfigToUI() {
+        // Home
+        document.getElementById('displayGameTitle').innerText = config.gameTitle;
+        document.getElementById('displayTeacherName').innerText = config.teacherName;
+        document.getElementById('displaySchoolName').innerText = config.schoolName;
+
+        // Settings Form
+        document.getElementById('cfgGameTitle').value = config.gameTitle;
+        document.getElementById('cfgTeacherName').value = config.teacherName;
+        document.getElementById('cfgSchoolName').value = config.schoolName;
+        document.getElementById('cfgTimeLimit').value = config.timeLimit;
+        document.getElementById('cfgMaxBubbles').value = config.maxBubbles;
+        document.getElementById('cfgDifficulty').value = config.difficulty;
+        document.getElementById('cfgSound').value = config.soundEnabled.toString();
+
+        renderWordSettings();
+    }
+
+    // --- Screen Navigation ---
+    function showScreen(screenId) {
+        initAudio(); // Try init audio on any user interaction
+        document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
+        document.getElementById('gameScreen').classList.add('hidden'); // HUD
+        
+        if (screenId === 'gameScreen' || screenId === 'none') {
+            // Handled separately in startGame logic
+        } else {
+            const el = document.getElementById(screenId);
+            if (el) el.classList.remove('hidden');
+            if(screenId === 'leaderboardScreen') renderLeaderboard();
+        }
+    }
+
+    // --- Game Logic ---
+    function startGameClick() {
+        const nameInput = document.getElementById('studentNameInput').value.trim();
+        if (!nameInput) {
+            alert("กรุณาพิมพ์ชื่อนักเรียนก่อนเริ่มเกมค่ะ!");
+            return;
+        }
+        if (config.wordList.length === 0) {
+            alert("คุณครูยังไม่ได้ตั้งค่าคำโจทย์ค่ะ!");
+            return;
+        }
+        gameState.studentName = nameInput;
+        initAudio();
+        startCountdown();
+    }
+
+    function startCountdown() {
+        showScreen('none'); // Hide all overlay screens
+        document.getElementById('gameScreen').classList.remove('hidden');
+        document.getElementById('countdownOverlay').classList.remove('hidden');
+        
+        // Reset state
+        gameState.score = 0;
+        gameState.time = config.timeLimit;
+        gameState.combo = 0;
+        gameState.maxCombo = 0;
+        gameState.correctCount = 0;
+        gameState.wrongCount = 0;
+        gameState.bubbles.forEach(b => b.el.remove());
+        gameState.bubbles = [];
+        updateHUD();
+        
+        pickNewTargetWord();
+
+        let count = 3;
+        const countdownEl = document.getElementById('countdownOverlay');
+        countdownEl.innerText = count;
+        playSound('pop');
+
+        gameState.countdownId = setInterval(() => {
+            count--;
+            if (count > 0) {
+                countdownEl.innerText = count;
+                playSound('pop');
+            } else if (count === 0) {
+                countdownEl.innerText = "เริ่ม!";
+                playSound('correct');
+            } else {
+                clearInterval(gameState.countdownId);
+                countdownEl.classList.add('hidden');
+                actualGameStart();
+            }
+        }, 1000);
+    }
+
+    function pickNewTargetWord() {
+        const randomIndex = Math.floor(Math.random() * config.wordList.length);
+        gameState.currentTarget = config.wordList[randomIndex];
+        document.getElementById('targetWordDisplay').innerText = `โจทย์: ${gameState.currentTarget.target}`;
+        gameState.correctWordsToChange = 0; // Reset counter
+    }
+
+    function getDifficultySettings() {
+        // Base speed requirement adjusted for better gameplay (pixels per frame)
+        let minSpeed, maxSpeed, wrongRatio;
+        if (config.difficulty === 'easy') {
+            minSpeed = 1.0; maxSpeed = 1.5; wrongRatio = 0.3;
+        } else if (config.difficulty === 'hard') {
+            minSpeed = 2.5; maxSpeed = 4.0; wrongRatio = 0.6;
+        } else { // normal
+            minSpeed = 1.5; maxSpeed = 2.5; wrongRatio = 0.45;
+        }
+        return { minSpeed, maxSpeed, wrongRatio };
+    }
+
+    function actualGameStart() {
+        gameState.gameRunning = true;
+        
+        // Timer
+        gameState.timerId = setInterval(() => {
+            gameState.time--;
+            updateHUD();
+            if (gameState.time <= 0) {
+                endGame();
+            }
+        }, 1000);
+
+        // Spawn first bubble immediately
+        spawnBubble();
+
+        // Start Animation Loop (CRITICAL PART)
+        gameState.animFrameId = requestAnimationFrame(moveBubbles);
+
+        // Spawn Interval
+        gameState.bubbleIntervalId = setInterval(() => {
+            if (gameState.bubbles.length < config.maxBubbles) {
+                spawnBubble();
+            }
+        }, 800); // Check every 0.8s to replenish
+    }
+
+    function spawnBubble() {
+        if (!gameState.gameRunning) return;
+
+        const diff = getDifficultySettings();
+        const isWrong = Math.random() < diff.wrongRatio;
+        
+        let wordStr = "";
+        let isCorrectBubble = false;
+
+        if (!isWrong && gameState.currentTarget.correct.length > 0) {
+            // Pick correct
+            const words = gameState.currentTarget.correct;
+            wordStr = words[Math.random() * words.length | 0];
+            isCorrectBubble = true;
+        } else if (gameState.currentTarget.wrong.length > 0) {
+            // Pick wrong
+            const words = gameState.currentTarget.wrong;
+            wordStr = words[Math.random() * words.length | 0];
+        } else {
+            // Fallback if lists are empty somehow
+            wordStr = "???";
+        }
+
+        // Create DOM Element
+        const size = Math.random() * 30 + 70; // 70px to 100px
+        const el = document.createElement('div');
+        el.className = 'bubble';
+        el.innerText = wordStr;
+        el.style.width = size + 'px';
+        el.style.height = size + 'px';
+        el.style.fontSize = (size * 0.3) + 'px';
+
+        // Styling gradient
+        const colors = bubbleColors[Math.random() * bubbleColors.length | 0];
+        el.style.background = `radial-gradient(circle at 30% 30%, ${colors[1]}, ${colors[0]})`;
+
+        // Position initial (bottom of screen)
+        const startX = Math.random() * (window.innerWidth - size);
+        const startY = window.innerHeight; // Start exactly at the bottom edge so it appears faster
+        
+        el.style.left = startX + 'px';
+        el.style.top = startY + 'px';
+
+        // Speed
+        const speed = Math.random() * (diff.maxSpeed - diff.minSpeed) + diff.minSpeed;
+
+        // Interaction (CRITICAL: pointerdown, passive:false)
+        el.addEventListener('pointerdown', (e) => {
+            e.preventDefault(); // Prevent scrolling/zooming on mobile
+            handleBubbleClick(bubbleObj, isCorrectBubble);
+        }, { passive: false });
+
+        document.getElementById('bubbleArea').appendChild(el);
+
+        const bubbleObj = {
+            el: el,
+            x: startX,
+            y: startY,
+            size: size,
+            speed: speed,
+            isCorrect: isCorrectBubble,
+            popped: false
+        };
+
+        gameState.bubbles.push(bubbleObj);
+    }
+
+    // CRITICAL: Movement Loop
+    function moveBubbles() {
+        if (!gameState.gameRunning) return;
+
+        // Iterate backwards to allow safe removal
+        for (let i = gameState.bubbles.length - 1; i >= 0; i--) {
+            let b = gameState.bubbles[i];
+            
+            if (b.popped) continue;
+
+            // Move up
+            b.y -= b.speed;
+            b.el.style.top = b.y + 'px';
+
+            // Remove if off top screen
+            if (b.y < -b.size) {
+                b.el.remove();
+                gameState.bubbles.splice(i, 1);
+            }
+        }
+
+        gameState.animFrameId = requestAnimationFrame(moveBubbles);
+    }
+
+    function handleBubbleClick(bubbleObj, isCorrect) {
+        if (bubbleObj.popped || !gameState.gameRunning) return;
+        
+        bubbleObj.popped = true;
+        bubbleObj.el.classList.add('pop');
+        
+        if (isCorrect) {
+            playSound('correct');
+            gameState.correctCount++;
+            gameState.combo++;
+            if (gameState.combo > gameState.maxCombo) gameState.maxCombo = gameState.combo;
+            
+            // Calculate score with combo multiplier
+            let basePoints = 10;
+            let multiplier = 1 + Math.floor(gameState.combo / 3) * 0.5; // Every 3 combo = +0.5x
+            gameState.score += Math.floor(basePoints * multiplier);
+            
+            showComboText();
+
+            // Change target word after 3 correct answers
+            gameState.correctWordsToChange++;
+            if (gameState.correctWordsToChange >= 3) {
+                changeTargetWordEffect();
+            }
+
+        } else {
+            playSound('wrong');
+            gameState.wrongCount++;
+            gameState.combo = 0;
+            gameState.score = Math.max(0, gameState.score - 5); // Penalty
+            
+            document.body.classList.add('shake');
+            setTimeout(() => document.body.classList.remove('shake'), 300);
+            
+            document.getElementById('comboDisplay').classList.add('hidden');
+        }
+
+        updateHUD();
+
+        // Remove element after animation
+        setTimeout(() => {
+            if (bubbleObj.el.parentNode) {
+                bubbleObj.el.remove();
+            }
+            // Remove from array
+            const idx = gameState.bubbles.indexOf(bubbleObj);
+            if (idx > -1) gameState.bubbles.splice(idx, 1);
+            
+            // Replenish immediately to keep screen active
+            if(gameState.gameRunning && gameState.bubbles.length < config.maxBubbles) {
+                spawnBubble();
+            }
+        }, 150);
+    }
+
+    function changeTargetWordEffect() {
+        pickNewTargetWord();
+        
+        // Optional: clear existing bubbles to force reading new word
+        // But requested: "หากเปลี่ยนคำโจทย์ระหว่างเกมแล้วล้างฟองเก่า ต้องเกิดฟองใหม่อย่างน้อย 1 ลูกทันทีหลังล้าง"
+        for (let i = gameState.bubbles.length - 1; i >= 0; i--) {
+            let b = gameState.bubbles[i];
+            b.el.remove();
+            gameState.bubbles.splice(i, 1);
+        }
+        
+        // Spawn immediately
+        spawnBubble();
+        spawnBubble();
+    }
+
+    function showComboText() {
+        if (gameState.combo > 1) {
+            const cd = document.getElementById('comboDisplay');
+            document.getElementById('comboCount').innerText = gameState.combo;
+            cd.classList.remove('hidden');
+            cd.classList.remove('combo-bump');
+            // Trigger reflow
+            void cd.offsetWidth;
+            cd.classList.add('combo-bump');
+        }
+    }
+
+    function updateHUD() {
+        document.getElementById('scoreDisplay').innerText = gameState.score;
+        document.getElementById('timeDisplay').innerText = gameState.time;
+    }
+
+    function endGame() {
+        gameState.gameRunning = false;
+        clearInterval(gameState.timerId);
+        clearInterval(gameState.bubbleIntervalId);
+        cancelAnimationFrame(gameState.animFrameId);
+
+        // Clear bubbles
+        gameState.bubbles.forEach(b => b.el.remove());
+        gameState.bubbles = [];
+
+        playSound('pop'); // End sound
+        saveToLeaderboard();
+        showSummaryScreen();
+    }
+
+    // --- Summary & Leaderboard ---
+    function showSummaryScreen() {
+        document.getElementById('gameScreen').classList.add('hidden');
+        document.getElementById('summaryScreen').classList.remove('hidden');
+
+        document.getElementById('sumGameTitle').innerText = config.gameTitle;
+        document.getElementById('sumTeacherName').innerText = config.teacherName;
+        document.getElementById('sumSchoolName').innerText = config.schoolName;
+        document.getElementById('sumStudentName').innerText = `ด.ช./ด.ญ. ${gameState.studentName}`;
+        
+        const d = new Date();
+        const thaiDate = d.toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' });
+        document.getElementById('sumDate').innerText = `เล่นเมื่อ: ${thaiDate}`;
+
+        document.getElementById('sumScore').innerText = gameState.score;
+        document.getElementById('sumCorrect').innerText = gameState.correctCount;
+        document.getElementById('sumWrong').innerText = gameState.wrongCount;
+        document.getElementById('sumMaxCombo').innerText = gameState.maxCombo;
+
+        // Calculate Stars
+        let stars = "⭐";
+        if (gameState.correctCount > 5 && gameState.score > 50) stars = "⭐⭐";
+        if (gameState.correctCount > 10 && gameState.score > 100) stars = "⭐⭐⭐";
+        if (gameState.correctCount > 20 && gameState.score > 250) stars = "🌟🌟🌟🌟";
+        document.getElementById('sumStars').innerText = stars;
+    }
+
+    function saveToLeaderboard() {
+        let lb = JSON.parse(localStorage.getItem('sampaGameLeaderboard') || '[]');
+        lb.push({
+            name: gameState.studentName,
+            score: gameState.score,
+            date: new Date().toISOString()
+        });
+        // Sort high to low
+        lb.sort((a, b) => b.score - a.score);
+        // Keep top 20
+        lb = lb.slice(0, 20);
+        localStorage.setItem('sampaGameLeaderboard', JSON.stringify(lb));
+    }
+
+    function renderLeaderboard() {
+        const lb = JSON.parse(localStorage.getItem('sampaGameLeaderboard') || '[]');
+        const list = document.getElementById('leaderboardList');
+        list.innerHTML = "";
+        
+        if (lb.length === 0) {
+            list.innerHTML = "<li style='text-align:center; color:#999;'>ยังไม่มีข้อมูลคะแนน</li>";
+            return;
+        }
+
+        lb.forEach((entry, index) => {
+            let rankClass = "";
+            let medal = `${index + 1}.`;
+            if (index === 0) { rankClass = "rank-1"; medal = "🥇"; }
+            else if (index === 1) { rankClass = "rank-2"; medal = "🥈"; }
+            else if (index === 2) { rankClass = "rank-3"; medal = "🥉"; }
+
+            const d = new Date(entry.date).toLocaleDateString('th-TH');
+            
+            const li = document.createElement('li');
+            li.innerHTML = `
+                <span class="${rankClass}">${medal} ${entry.name}</span>
+                <span><strong>${entry.score}</strong> <small style="color:#999">(${d})</small></span>
+            `;
+            list.appendChild(li);
+        });
+    }
+
+    function clearLeaderboard() {
+        if(confirm("ต้องการล้างข้อมูลตารางคะแนนทั้งหมดใช่หรือไม่?")) {
+            localStorage.removeItem('sampaGameLeaderboard');
+            renderLeaderboard();
+        }
+    }
+
+    function saveAsImage() {
+        if (typeof html2canvas === 'undefined') {
+            alert("ไม่สามารถโหลดระบบบันทึกภาพได้ในขณะนี้ กรุณาแคปหน้าจอแทนค่ะ");
+            return;
+        }
+
+        const element = document.getElementById('exportContent');
+        const originalBg = element.style.background;
+        element.style.background = "linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%)"; // Ensure background is filled
+
+        html2canvas(element, { scale: 2 }).then(canvas => {
+            element.style.background = originalBg; // restore
+            
+            const link = document.createElement('a');
+            link.download = `ผลคะแนน_${gameState.studentName}.png`;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        }).catch(err => {
+            alert("เกิดข้อผิดพลาดในการสร้างรูปภาพ กรุณาแคปหน้าจอแทนค่ะ");
+            element.style.background = originalBg;
+        });
+    }
+
+    // --- Settings Logic ---
+    function renderWordSettings() {
+        const container = document.getElementById('wordListContainer');
+        container.innerHTML = `
+            <div class="word-row" style="font-weight:bold; text-align:center; background:#eee; padding:5px; border-radius:5px;">
+                <div>โจทย์</div>
+                <div>คำที่ถูก (คั่นด้วย /)</div>
+                <div>คำลวง (คั่นด้วย /)</div>
+                <div>ลบ</div>
+            </div>
+        `;
+
+        config.wordList.forEach((item, index) => {
+            const row = document.createElement('div');
+            row.className = 'word-row';
+            
+            row.innerHTML = `
+                <input type="text" value="${item.target}" id="wt_${index}">
+                <input type="text" value="${item.correct.join('/')}" id="wc_${index}">
+                <input type="text" value="${item.wrong.join('/')}" id="ww_${index}">
+                <button class="btn btn-danger" style="padding: 5px 10px; margin:0;" onclick="removeWordRow(${index})">X</button>
+            `;
+            container.appendChild(row);
+        });
+    }
+
+    function addWordRow() {
+        // Safe deep copy avoidance of structuredClone
+        const tempConfig = JSON.parse(JSON.stringify(config));
+        tempConfig.wordList.push({ target: "คำใหม่", correct: ["คำถูก1"], wrong: ["คำลวง1"] });
+        config = tempConfig;
+        renderWordSettings();
+    }
+
+    function removeWordRow(index) {
+        if(config.wordList.length <= 1) {
+            alert("ต้องมีอย่างน้อย 1 ชุดคำ");
+            return;
+        }
+        if(confirm("ต้องการลบชุดคำนี้ใช่หรือไม่?")) {
+            config.wordList.splice(index, 1);
+            renderWordSettings();
+        }
+    }
+
+    function saveSettings() {
+        // Collect Main Settings
+        config.gameTitle = document.getElementById('cfgGameTitle').value.trim() || DEFAULT_CONFIG.gameTitle;
+        config.teacherName = document.getElementById('cfgTeacherName').value.trim() || DEFAULT_CONFIG.teacherName;
+        config.schoolName = document.getElementById('cfgSchoolName').value.trim() || DEFAULT_CONFIG.schoolName;
+        config.timeLimit = parseInt(document.getElementById('cfgTimeLimit').value) || 60;
+        config.maxBubbles = parseInt(document.getElementById('cfgMaxBubbles').value) || 8;
+        config.difficulty = document.getElementById('cfgDifficulty').value;
+        config.soundEnabled = document.getElementById('cfgSound').value === "true";
+
+        // Collect Words
+        const newWordList = [];
+        for (let i = 0; i < config.wordList.length; i++) {
+            const tInput = document.getElementById(`wt_${i}`);
+            if(!tInput) continue; // In case of rendering issues
+
+            const target = tInput.value.trim();
+            const correctStr = document.getElementById(`wc_${i}`).value;
+            const wrongStr = document.getElementById(`ww_${i}`).value;
+
+            if (target) {
+                newWordList.push({
+                    target: target,
+                    correct: correctStr.split('/').map(s => s.trim()).filter(s => s !== ""),
+                    wrong: wrongStr.split('/').map(s => s.trim()).filter(s => s !== "")
+                });
+            }
+        }
+
+        if (newWordList.length === 0) {
+            alert("ต้องมีคำโจทย์อย่างน้อย 1 ชุดค่ะ");
+            return;
+        }
+
+        config.wordList = newWordList;
+
+        // Save
+        localStorage.setItem('sampaGameConfig', JSON.stringify(config));
+        
+        applyConfigToUI();
+        alert("บันทึกการตั้งค่าเรียบร้อยแล้วค่ะ");
+        showScreen('homeScreen');
+    }
+
+    // Run Init on Load
+    window.onload = init;
+
+</script>
+</body>
+</html>
